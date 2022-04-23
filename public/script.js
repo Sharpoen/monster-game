@@ -144,9 +144,9 @@ function draw(){
   // render bullets
   
   fill(255, 255, 0);
-  tmpb = Array.from(bullets);
+  tmpb = Array.from(blocks);
   for(let i=0; i<tmpb.length; i++){
-    ellipse(tmpb[i][0]+width/2-mypos[0], tmpb[i][1]+height/2-mypos[1], 5, 5);
+    ellipse(tmpb[i][0]+width/2-mypos[0], tmpb[i][1]+height/2-mypos[1], 25, 25);
   }
 
 
