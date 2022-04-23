@@ -36,9 +36,57 @@ function mrect(x, y, w, h){
 }
 
 
-var pos = {"bob": [10, 30]};      // name  : [x, y]
-var zom = [];      // index : [alive, x, y, velocity(x, y), ] 
-var bullets = [];  // index : [alive, x, y, velocity(x, y), velocity decay(x, y), damage]
+var mypos=[0, 0, 0];
+
+
+setInterval(function(){
+  socket.emit("update me", mypos);
+})
+
+
+
+var pos = {};      // name  : [x, y. direction]
+var zom = [];      // [x, y, direction, speed, health] 
+var bullets = [];  // [x, y, direction, speed, decay]
+
+setInterval(function(){
+
+  // input
+  
+  if (inputs.up) {
+    mypos[1]-=1;
+  }
+  if (inputs.down) {
+    mypos[1]+=1;
+  }
+  if (inputs.left) {
+    mypos[0]-=1;
+  }
+  if (inputs.right) {
+    mypos[0]+=1;
+  }
+
+  // bullets
+
+  for(let i=bullets.length-1; i>=0; i--){
+    bullets[i][0]+=bullets[i][2].x*bullets[i][3];
+    bullets[i][1]+=bullets[i][2].y*bullets[i][3];
+
+    if(dist(mypos[0], mypos[1], bullets[i][0], bullets[i][1])<=10){
+      mypos[0]=0;
+      mypos[1]=0;
+      bullets.splice(i, 1);
+    }else{
+      
+      bullets[i][3]-=bullets[i][4];
+  
+      if(bullets[i][3]<0 || bullets[i][3]>15){
+        bullets.splice(i, 1);
+      }
+    }
+  }
+  
+},15);
 
 var username="";
 var truename="";
@@ -48,6 +96,8 @@ var settings={"login":"open", "text_selected":"none"}
 let ui_buttons=[]
 
 function draw(){
+  mypos[2]=createVector(0+(mouseX-width/2), 0+(mouseY-height/2)).normalize();
+  
   if(inputs.clickL){
     settings["text_selected"]="none";
   }
@@ -57,19 +107,40 @@ function draw(){
   textSize(10);
   textAlign(CENTER, BOTTOM);
   for (let n in pos){
-    if (truename in settings){
-      text(n, pos[n][0]+pos[truename][0], pos[n][1]+pos[truename][1]-10);
-      ellipse(pos[n][0]+pos[truename][0], pos[n][1]+pos[truename][1], 10, 10);
+    if (truename in pos){
+      text(n, pos[n][0]-pos[truename][0]+width/2, pos[n][1]-pos[truename][1]+height/2-10);
+      ellipse(pos[n][0]-pos[truename][0]+width/2, pos[n][1]-pos[truename][1]+height/2, 10, 10);
+      if(pos[n][2]){
+        strokeWeight(2);
+        stroke(0, 255, 0);
+        line(pos[n][0]-pos[truename][0]+width/2, pos[n][1]-pos[truename][1]+height/2, pos[n][0]-pos[truename][0]+width/2+pos[n][2].x*15, pos[n][1]-pos[truename][1]+height/2+pos[n][2].y*15);
+        stroke(0,0);
+      }
     }else{
-      text(n, pos[n][0], pos[n][1]-10);
-      ellipse(pos[n][0], pos[n][1], 10, 10);
+      text(n, pos[n][0]+width/2, pos[n][1]+height/2-10);
+      ellipse(pos[n][0]+width/2, pos[n][1]+height/2, 10, 10);
     }
   }
 
+  fill(255, 0, 255);
+
+  let tmpb = Array.from(bullets);
+  for(let i=0; i<tmpb.length; i++){
+    ellipse(tmpb[i][0]+width/2-mypos[0], tmpb[i][1]+height/2-mypos[1], 5, 5);
+  }
+  
+
+  if(inputs.clickL){
+    socket.emit("shot", [ // x, y, direction, speed, decay
+      mypos[0]+mypos[2].x*12, mypos[1]+mypos[2].y*12,
+      mypos[2], 10, 0.4
+    ]);
+  }
+  
   fill(colors["uidefault"]);
   textSize(25);
   textAlign(LEFT, TOP);
-  if(settings["login"]=="open"){
+  if(settings["login"]=="open") {
     rect(0, 0, width, 25);
     fill(colors["highlight"]);
     if(mrect(0, 0, textWidth("<"), 25)){
@@ -104,7 +175,8 @@ function draw(){
     fill(0);
     text("Connect", textWidth("<")+10+textWidth("Username: ["+username+"]")+10, 0);
     
-  }else{
+  }
+  else {
     rect(0, 0, textWidth(">"), 25);
     if (mrect(0, 0, textWidth(">"), 25)){
       fill(colors["highlight"]);
@@ -117,6 +189,10 @@ function draw(){
     text(">", 0, 0);
   }
 
+    //
+    if(truename!=""){
+      pos[truename]=mypos;
+    }
 
     // 
     inputs.clickL=false;
@@ -128,9 +204,9 @@ function draw(){
 
 window.addEventListener("keydown", function(key){
   if (settings["text_selected"]!="none"){
-    if ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_".split("").includes(key.key)){
+    if ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_ 1234567890=+".split("").includes(key.key)){
       if (settings.text_selected=="username"){
-        if(username.length<12){
+        if(username.length<15){
           username+=key.key;
         }
       }
@@ -142,10 +218,21 @@ window.addEventListener("keydown", function(key){
   }
 });
 
+
 socket.on("accepted", function(){
+  console.log("ACCEPTED!")
   truename=username;
 });
 
 socket.on("joined", user => { // when server tells client that someone has joined
   pos[user]=[random(0, width), random(0, height)];
 });
+
+socket.on("force_update-players", data => {
+  pos=data;
+  pos[truename]=mypos;
+});
+
+socket.on("shot", bullet => {
+  bullets.push(bullet);
+})
