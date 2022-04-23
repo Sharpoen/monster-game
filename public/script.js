@@ -49,10 +49,13 @@ var pos = {};      // name  : [x, y. direction]
 var zom = [];      // [x, y, [goal x, goal y], speed, health]
 var bullets = [];  // [x, y, direction, speed, decay]
 
-let tmbp;
+var tblock; // temporary blocks array
+var pvc;
+
+var tmbp; // temporary array for draw loop
+var tmv;  // temporary vector for draw loop
 
 setInterval(function(){
-
   // input
   
   if (inputs.up) {
@@ -66,6 +69,16 @@ setInterval(function(){
   }
   if (inputs.right) {
     mypos[0]+=3;
+  }
+
+  // collision
+  tblocks = Array.from(blocks);
+  for(let i=0;i<tblocks.length;i++){
+    if (dist(mypos[0], mypos[1], tblocks[i][0], tblocks[i][1])<25){
+      pvc=createVector(mypos[0]-tblocks[i][0], mypos[1]-tblocks[i][1]).normalize();
+      mypos[0]+=pvc.x*dist(mypos[0], mypos[1], tblocks[i][0], tblocks[i][1])/4;
+      mypos[1]+=pvc.y*dist(mypos[0], mypos[1], tblocks[i][0], tblocks[i][1])/4;
+    }
   }
 
   // bullets
@@ -84,6 +97,14 @@ setInterval(function(){
   
       if(bullets[i][3]<0 || bullets[i][3]>50){
         bullets.splice(i, 1);
+      }else{
+        tblocks = Array.from(blocks);
+        for(let n=0;n<tblocks.length;n++){
+          if (dist(bullets[i][0], bullets[i][1], tblocks[n][0], tblocks[n][1])<15){
+            bullets.splice(i, 1);
+            break;
+          }
+        }
       }
     }
   }
@@ -106,11 +127,15 @@ function draw(){
   }
   background(0, 0, 0);
 
+  fill(50, 50, 50);
+  ellipse(width/2-mypos[0], height/2-mypos[1], 750, 750);
+
+  
   // render blocks
   fill(255, 100, 50);
   tmpb = Array.from(blocks);
-  for(let i=0;i<tmpb;i++){
-    ellipse(blocks[i][0]-pos[truename][0]+width/2, blocks[i][1]-pos[truename][1]+height/2, 25, 25)
+  for(let i=0;i<tmpb.length;i++){
+    ellipse(tmpb[i][0]+width/2-mypos[0], tmpb[i][1]+height/2-mypos[1], 25, 25)
   }
   
   // render players
@@ -144,20 +169,24 @@ function draw(){
   // render bullets
   
   fill(255, 255, 0);
-  tmpb = Array.from(blocks);
+  tmpb = Array.from(bullets);
   for(let i=0; i<tmpb.length; i++){
-    ellipse(tmpb[i][0]+width/2-mypos[0], tmpb[i][1]+height/2-mypos[1], 25, 25);
+    ellipse(tmpb[i][0]+width/2-mypos[0], tmpb[i][1]+height/2-mypos[1], 5, 5);
   }
 
-
+  // shoot bullet
   if(inputs.clickL){
     socket.emit("shot", [ // x, y, direction, speed, decay
-      mypos[0]+mypos[2].x*12, mypos[1]+mypos[2].y*12,
+      mypos[0]+mypos[2].x*30, mypos[1]+mypos[2].y*30,
       mypos[2], 15, 0.2
     ]);
   }
+
+  // place block
   if(inputs.clickR){
-    blocks.push([mouseX-width/2+mypos[0], mouseY-height/2+mypos[1], 10]);
+    if(dist(0, 0, mouseX-width/2+mypos[0], mouseY-height/2+mypos[1])>375){
+      socket.emit("newblock", [mouseX-width/2+mypos[0], mouseY-height/2+mypos[1], 10]);
+    }
   }
   
   fill(colors["uidefault"]);
@@ -260,6 +289,10 @@ socket.on("force_update-players", data => {
 
 socket.on("shot", bullet => {
   bullets.push(bullet);
+})
+
+socket.on("update blocks", data => {
+  blocks = data;
 })
 
 socket.on("zombie", monster => {

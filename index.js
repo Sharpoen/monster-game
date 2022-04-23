@@ -11,6 +11,7 @@ var status = {};
 
 var pos = {};      // name  : [x, y]
 var zom = [];      // [x, y, [goal x, goal y], target, speed, health]
+var blocks = [];
 // var bullets = [];  // index : [alive, x, y, velocity(x, y), velocity decay(x, y), damage]
 
 
@@ -25,6 +26,7 @@ io.on("connection", socket => {
         rid[socket.id]=name;
         ids[name]=socket.id;
         status[name]="online";
+        socket.emit("accepted", null)
       }else{
         pos[name]=[];
         ids[name]=socket.id;
@@ -32,15 +34,27 @@ io.on("connection", socket => {
         status[name]="online";
         io.emit("joined", name);
         socket.emit("accepted", null);
+        socket.emit("update blocks", blocks);
       }
     }
   });
   socket.on("update me", data => {
-    pos[rid[socket.id]]=data;
+    if(socket.id in rid){
+      pos[rid[socket.id]]=data;
+    }
   });
   socket.on("shot", bullet => {
-    io.emit("shot", bullet);
+    if(socket.id in rid){
+      io.emit("shot", bullet);
+    }
   });
+  socket.on("newblock", data => {
+    if(socket.id in rid){
+      blocks.push(data);
+      io.emit("update blocks", blocks);
+    }
+  });
+  
   socket.on("disconnect", () => { // when someone closes the tab
     io.emit("leave");
     status[rid[socket.id]] = "offline";
