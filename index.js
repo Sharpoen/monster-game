@@ -10,8 +10,8 @@ var rid = {}; // id   : name
 var status = {};
 
 var pos = {};      // name  : [x, y]
-var zom = [];      // index : [alive, x, y, velocity(x, y), ] 
-var bullets = [];  // index : [alive, x, y, velocity(x, y), velocity decay(x, y), damage]
+var zom = [];      // [x, y, [goal x, goal y], target, speed, health]
+// var bullets = [];  // index : [alive, x, y, velocity(x, y), velocity decay(x, y), damage]
 
 
 io.on("connection", socket => {
@@ -52,6 +52,13 @@ io.on("connection", socket => {
 
 setInterval(function(){
   io.emit("force_update-players", pos);
-}, 300)
+
+  if (Math.random()*20>19){
+    io.emit("zombie", [Math.random()*50-25, Math.random()*50-25, [0, 0], 2, 1])
+  }
+}, 150)
+setInterval(function(){
+  
+}, 15)
 
 server.listen(3000); // run server

@@ -44,26 +44,28 @@ setInterval(function(){
 })
 
 
-
+var blocks = [];   // [x, y, health]
 var pos = {};      // name  : [x, y. direction]
-var zom = [];      // [x, y, direction, speed, health] 
+var zom = [];      // [x, y, [goal x, goal y], speed, health]
 var bullets = [];  // [x, y, direction, speed, decay]
+
+let tmbp;
 
 setInterval(function(){
 
   // input
   
   if (inputs.up) {
-    mypos[1]-=1;
+    mypos[1]-=3;
   }
   if (inputs.down) {
-    mypos[1]+=1;
+    mypos[1]+=3;
   }
   if (inputs.left) {
-    mypos[0]-=1;
+    mypos[0]-=3;
   }
   if (inputs.right) {
-    mypos[0]+=1;
+    mypos[0]+=3;
   }
 
   // bullets
@@ -72,15 +74,15 @@ setInterval(function(){
     bullets[i][0]+=bullets[i][2].x*bullets[i][3];
     bullets[i][1]+=bullets[i][2].y*bullets[i][3];
 
-    if(dist(mypos[0], mypos[1], bullets[i][0], bullets[i][1])<=10){
-      mypos[0]=0;
-      mypos[1]=0;
+    if(dist(mypos[0], mypos[1], bullets[i][0], bullets[i][1])<=25){
+      // mypos[0]=0;
+      // mypos[1]=0;
       bullets.splice(i, 1);
     }else{
       
       bullets[i][3]-=bullets[i][4];
   
-      if(bullets[i][3]<0 || bullets[i][3]>15){
+      if(bullets[i][3]<0 || bullets[i][3]>50){
         bullets.splice(i, 1);
       }
     }
@@ -91,6 +93,7 @@ setInterval(function(){
 var username="";
 var truename="";
 
+// flags for user interface
 var settings={"login":"open", "text_selected":"none"}
 
 let ui_buttons=[]
@@ -103,43 +106,65 @@ function draw(){
   }
   background(0, 0, 0);
 
+  // render blocks
+  fill(255, 100, 50);
+  tmpb = Array.from(blocks);
+  for(let i=0;i<tmpb;i++){
+    ellipse(blocks[i][0]-pos[truename][0]+width/2, blocks[i][1]-pos[truename][1]+height/2, 25, 25)
+  }
+  
+  // render players
   fill(0, 255, 0);
   textSize(10);
   textAlign(CENTER, BOTTOM);
   for (let n in pos){
     if (truename in pos){
-      text(n, pos[n][0]-pos[truename][0]+width/2, pos[n][1]-pos[truename][1]+height/2-10);
-      ellipse(pos[n][0]-pos[truename][0]+width/2, pos[n][1]-pos[truename][1]+height/2, 10, 10);
+      text(n, pos[n][0]-pos[truename][0]+width/2, pos[n][1]-pos[truename][1]+height/2-25);
+      ellipse(pos[n][0]-pos[truename][0]+width/2, pos[n][1]-pos[truename][1]+height/2, 25, 25);
       if(pos[n][2]){
-        strokeWeight(2);
+        strokeWeight(10);
         stroke(0, 255, 0);
-        line(pos[n][0]-pos[truename][0]+width/2, pos[n][1]-pos[truename][1]+height/2, pos[n][0]-pos[truename][0]+width/2+pos[n][2].x*15, pos[n][1]-pos[truename][1]+height/2+pos[n][2].y*15);
+        line(pos[n][0]-pos[truename][0]+width/2, pos[n][1]-pos[truename][1]+height/2, pos[n][0]-pos[truename][0]+width/2+pos[n][2].x*45, pos[n][1]-pos[truename][1]+height/2+pos[n][2].y*45);
         stroke(0,0);
       }
     }else{
       text(n, pos[n][0]+width/2, pos[n][1]+height/2-10);
-      ellipse(pos[n][0]+width/2, pos[n][1]+height/2, 10, 10);
+      ellipse(pos[n][0]+width/2, pos[n][1]+height/2, 25, 25);
     }
   }
 
-  fill(255, 0, 255);
+  // render zombies
+  
+  // fill(255, 0, 0);
+  // tmpb = Array.from(zom);
+  // for(let i=0; i<tmpb.length; i++){
+  //   ellipse(tmpb[i][0]+width/2-mypos[0], tmpb[i][1]+height/2-mypos[1], 25, 25);
+  // }
 
-  let tmpb = Array.from(bullets);
+  // render bullets
+  
+  fill(255, 255, 0);
+  tmpb = Array.from(bullets);
   for(let i=0; i<tmpb.length; i++){
     ellipse(tmpb[i][0]+width/2-mypos[0], tmpb[i][1]+height/2-mypos[1], 5, 5);
   }
-  
+
 
   if(inputs.clickL){
     socket.emit("shot", [ // x, y, direction, speed, decay
       mypos[0]+mypos[2].x*12, mypos[1]+mypos[2].y*12,
-      mypos[2], 10, 0.4
+      mypos[2], 15, 0.2
     ]);
+  }
+  if(inputs.clickR){
+    blocks.push([mouseX-width/2+mypos[0], mouseY-height/2+mypos[1], 10]);
   }
   
   fill(colors["uidefault"]);
   textSize(25);
   textAlign(LEFT, TOP);
+
+  // login user interface
   if(settings["login"]=="open") {
     rect(0, 0, width, 25);
     fill(colors["highlight"]);
@@ -236,3 +261,7 @@ socket.on("force_update-players", data => {
 socket.on("shot", bullet => {
   bullets.push(bullet);
 })
+
+socket.on("zombie", monster => {
+  zom.push(monster);
+});
